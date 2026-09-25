@@ -72,26 +72,43 @@ Instructions:
 6. Provide a brief linguistic note explaining nuances, cultural resonance, or idiom equivalents if interesting, else null.
 `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        temperature: 0.3,
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            translatedText: { type: Type.STRING },
-            detectedLanguage: { type: Type.STRING },
-            detectedLanguageCode: { type: Type.STRING },
-            confidence: { type: Type.INTEGER },
-            transliteration: { type: Type.STRING },
-            linguisticNotes: { type: Type.STRING },
+    // Generate translation using gemini-3.8-flash with fallback support
+    const models = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+    let response: any = null;
+    let lastError: any = null;
+
+    for (const model of models) {
+      try {
+        response = await ai.models.generateContent({
+          model,
+          contents: prompt,
+          config: {
+            temperature: 0.3,
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                translatedText: { type: Type.STRING },
+                detectedLanguage: { type: Type.STRING },
+                detectedLanguageCode: { type: Type.STRING },
+                confidence: { type: Type.INTEGER },
+                transliteration: { type: Type.STRING },
+                linguisticNotes: { type: Type.STRING },
+              },
+              required: ['translatedText', 'detectedLanguage', 'detectedLanguageCode'],
+            },
           },
-          required: ['translatedText', 'detectedLanguage', 'detectedLanguageCode'],
-        },
-      },
-    });
+        });
+        if (response) break;
+      } catch (err: any) {
+        console.warn(`Model ${model} in serverless function failed, trying fallback:`, err?.message || err);
+        lastError = err;
+      }
+    }
+
+    if (!response) {
+      throw lastError || new Error('Failed to generate content with available models.');
+    }
 
     const outputText = response.text?.trim() || '{}';
     const parsedData = JSON.parse(outputText);
