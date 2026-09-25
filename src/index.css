@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+/*
+ * Custom dark variant bound strictly to data-theme="dark" on :root / <html>.
+ * Prevents system OS @media (prefers-color-scheme: dark) from overriding manual user toggle.
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* Light Mode Rules */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg-app: #f8fafc;
+  --bg-card: #ffffff;
+  --text-base: #0f172a;
+  --text-muted: #64748b;
+  --border-ui: #e2e8f0;
+}
+
+/* Dark Mode Rules */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-app: #090d16;
+  --bg-card: #0f172a;
+  --text-base: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-ui: #1e293b;
+}
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    color: var(--text-base);
+    background-color: var(--bg-app);
+  }
+}
+
+/* Custom sleek scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
