@@ -189,39 +189,67 @@ export const TargetCard: React.FC<TargetCardProps> = ({
         )}
 
         {/* Translation Output Display */}
-        {!isLoading && !error && targetText && (
-          <div className="flex-1 flex flex-col justify-between">
-            <div
-              dir={isRtl ? 'rtl' : 'ltr'}
-              className={`text-slate-900 dark:text-slate-50 text-base sm:text-lg leading-relaxed select-text whitespace-pre-wrap ${
-                isRtl ? 'text-right' : 'text-left'
-              }`}
-            >
-              {targetText}
-            </div>
+        {!isLoading && !error && targetText && (() => {
+          const rawRomanization = translation?.romanization ?? translation?.transliteration;
+          const isValidRomanization = Boolean(
+            rawRomanization &&
+              typeof rawRomanization === 'string' &&
+              rawRomanization.trim().toLowerCase() !== 'null' &&
+              rawRomanization.trim().toLowerCase() !== 'undefined' &&
+              rawRomanization.trim().toLowerCase() !== 'none' &&
+              rawRomanization.trim().toLowerCase() !== 'n/a' &&
+              rawRomanization.trim() !== ''
+          );
+          const validRomanization = isValidRomanization ? (rawRomanization as string).trim() : null;
 
-            {/* Pronunciation / Transliteration & Linguistic Nuances */}
-            {(translation?.transliteration || translation?.linguisticNotes) && (
-              <div className="mt-4 pt-3 border-t border-indigo-100/60 dark:border-slate-800 space-y-2">
-                {translation.transliteration && (
-                  <div className="text-xs bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 rounded-lg p-2.5 text-indigo-900 dark:text-indigo-200">
-                    <span className="font-semibold uppercase tracking-wider text-[10px] text-indigo-500 dark:text-indigo-400 block mb-0.5">
-                      Pronunciation / Romanization
-                    </span>
-                    <p className="italic font-serif">{translation.transliteration}</p>
-                  </div>
-                )}
+          const rawNotes = translation?.linguisticNotes;
+          const isValidNotes = Boolean(
+            rawNotes &&
+              typeof rawNotes === 'string' &&
+              rawNotes.trim().toLowerCase() !== 'null' &&
+              rawNotes.trim().toLowerCase() !== 'undefined' &&
+              rawNotes.trim().toLowerCase() !== 'none' &&
+              rawNotes.trim().toLowerCase() !== 'n/a' &&
+              rawNotes.trim() !== ''
+          );
+          const validNotes = isValidNotes ? (rawNotes as string).trim() : null;
 
-                {translation.linguisticNotes && (
-                  <div className="text-xs bg-slate-100/70 dark:bg-slate-800/60 rounded-lg p-2.5 text-slate-600 dark:text-slate-300 flex items-start gap-2">
-                    <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                    <span>{translation.linguisticNotes}</span>
-                  </div>
-                )}
+          return (
+            <div className="flex-1 flex flex-col justify-between">
+              <div
+                dir={isRtl ? 'rtl' : 'ltr'}
+                className={`text-slate-900 dark:text-slate-50 text-base sm:text-lg leading-relaxed select-text whitespace-pre-wrap ${
+                  isRtl ? 'text-right' : 'text-left'
+                }`}
+              >
+                {targetText}
               </div>
-            )}
-          </div>
-        )}
+
+              {/* Pronunciation / Romanization & Linguistic Nuances */}
+              {(validRomanization || validNotes) && (
+                <div className="mt-4 pt-3 border-t border-indigo-100/60 dark:border-slate-800 space-y-2">
+                  {validRomanization && (
+                    <div className="text-xs bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 rounded-lg p-2.5 text-indigo-900 dark:text-indigo-200">
+                      <span className="font-semibold uppercase tracking-wider text-[10px] text-indigo-500 dark:text-indigo-400 block mb-0.5">
+                        Pronunciation / Romanization
+                      </span>
+                      <p className="italic font-serif text-sm font-medium tracking-wide text-indigo-950 dark:text-indigo-100">
+                        {validRomanization}
+                      </p>
+                    </div>
+                  )}
+
+                  {validNotes && (
+                    <div className="text-xs bg-slate-100/70 dark:bg-slate-800/60 rounded-lg p-2.5 text-slate-600 dark:text-slate-300 flex items-start gap-2">
+                      <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                      <span>{validNotes}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Card Footer Toolbar */}

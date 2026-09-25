@@ -14,8 +14,9 @@ export interface TranslationResponse {
   detectedLanguage?: string;
   detectedLanguageCode?: string;
   confidence?: number;
-  transliteration?: string;
-  linguisticNotes?: string;
+  romanization?: string | null;
+  transliteration?: string | null;
+  linguisticNotes?: string | null;
 }
 
 export interface HistoryItem {
@@ -28,7 +29,8 @@ export interface HistoryItem {
   targetLangName: string;
   detectedLanguage?: string;
   confidence?: number;
-  transliteration?: string;
+  romanization?: string | null;
+  transliteration?: string | null;
   tone: TranslationTone;
   timestamp: number;
   isFavorite?: boolean;

@@ -239,6 +239,7 @@ export default function App() {
         setTranslation(data);
 
         // Add to translation history
+        const cleanRomanization = data.romanization ?? data.transliteration ?? null;
         const newHistoryItem: HistoryItem = {
           id: `hist_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
           sourceText: textToTranslate,
@@ -252,7 +253,8 @@ export default function App() {
           targetLangName: targetLang.name,
           detectedLanguage: data.detectedLanguage,
           confidence: data.confidence,
-          transliteration: data.transliteration,
+          romanization: cleanRomanization,
+          transliteration: cleanRomanization,
           tone: currentTone,
           timestamp: Date.now(),
           isFavorite: false,
@@ -316,7 +318,22 @@ export default function App() {
         translatedText: sourceText,
         detectedLanguage: newSource.name,
         confidence: 100,
+        romanization: null,
+        transliteration: null,
       });
+    }
+  };
+
+  /**
+   * Handle Target Language Change cleanly
+   */
+  const handleSelectTargetLanguage = (lang: Language) => {
+    if (lang.code !== targetLang.code) {
+      setTargetLang(lang);
+      if (!liveTranslate) {
+        // Clear prior translation so stale romanization/text from previous language never lingers
+        setTranslation(null);
+      }
     }
   };
 
@@ -410,6 +427,7 @@ export default function App() {
         )
       );
     } else {
+      const favRomanization = translation.romanization ?? translation.transliteration ?? null;
       const newFav: HistoryItem = {
         id: `fav_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
         sourceText,
@@ -423,7 +441,8 @@ export default function App() {
         targetLangName: targetLang.name,
         detectedLanguage: translation.detectedLanguage,
         confidence: translation.confidence,
-        transliteration: translation.transliteration,
+        romanization: favRomanization,
+        transliteration: favRomanization,
         tone: currentTone,
         timestamp: Date.now(),
         isFavorite: true,
@@ -448,6 +467,7 @@ export default function App() {
    * Reuse translation from history
    */
   const handleReuseHistory = (item: HistoryItem) => {
+    const itemRomanization = item.romanization ?? item.transliteration ?? null;
     setSourceText(item.sourceText);
     setSourceLang(getLanguageByCode(item.sourceLang));
     setTargetLang(getLanguageByCode(item.targetLang));
@@ -456,7 +476,8 @@ export default function App() {
       translatedText: item.translatedText,
       detectedLanguage: item.detectedLanguage,
       confidence: item.confidence,
-      transliteration: item.transliteration,
+      romanization: itemRomanization,
+      transliteration: itemRomanization,
     });
     setIsHistoryOpen(false);
     setTimeout(() => {
@@ -623,7 +644,7 @@ export default function App() {
             isLoading={isLoading}
             error={error}
             selectedLanguage={targetLang}
-            onSelectLanguage={setTargetLang}
+            onSelectLanguage={handleSelectTargetLanguage}
             sourceText={sourceText}
             isSpeaking={speakingTarget === 'target'}
             onSpeak={() => handleSpeak('target')}

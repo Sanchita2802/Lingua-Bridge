@@ -68,7 +68,7 @@ Instructions:
 2. If the source language is Auto-Detect, identify the detected language name (e.g., "French", "Hindi", "Japanese") and its BCP-47 / ISO code (e.g., "fr", "hi", "ja").
 3. If source language was already specified, confirm that language name and code.
 4. Estimate your detection/translation confidence (0 to 100 integer).
-5. For languages using non-Latin scripts (e.g., Hindi, Japanese, Arabic, Russian, Chinese, Korean, Malayalam, etc.), provide a helpful romanized pronunciation / transliteration. If target language is already Latin-based, this can be null.
+5. Always provide a \`romanization\` field containing the Latin-script phonetic pronunciation of the translated text for any language that does not natively use Latin script (e.g., Hindi, Marathi, Chinese, Japanese, Arabic, Russian, Greek, Korean, etc. - e.g. for "नमस्ते" provide "Namaste"). If the target language already uses Latin script (e.g., French, Spanish, German, Italian, English, Portuguese), set romanization to null. Never output the literal string "null".
 6. Provide a brief linguistic note explaining nuances, cultural resonance, or idiom equivalents if interesting, else null.
 `;
 
@@ -88,12 +88,33 @@ Instructions:
             responseSchema: {
               type: Type.OBJECT,
               properties: {
-                translatedText: { type: Type.STRING },
-                detectedLanguage: { type: Type.STRING },
-                detectedLanguageCode: { type: Type.STRING },
-                confidence: { type: Type.INTEGER },
-                transliteration: { type: Type.STRING },
-                linguisticNotes: { type: Type.STRING },
+                translatedText: {
+                  type: Type.STRING,
+                  description: 'The translated text in the target language.',
+                },
+                romanization: {
+                  type: Type.STRING,
+                  nullable: true,
+                  description:
+                    'Latin-script phonetic pronunciation of the translated text for non-Latin scripts (e.g., "Namaste" for "नमस्ते"). Return null if target language uses Latin script.',
+                },
+                detectedLanguage: {
+                  type: Type.STRING,
+                  description: 'Detected language name.',
+                },
+                detectedLanguageCode: {
+                  type: Type.STRING,
+                  description: 'Detected language code.',
+                },
+                confidence: {
+                  type: Type.INTEGER,
+                  description: 'Confidence score from 0 to 100.',
+                },
+                linguisticNotes: {
+                  type: Type.STRING,
+                  nullable: true,
+                  description: 'Brief cultural note or null.',
+                },
               },
               required: ['translatedText', 'detectedLanguage', 'detectedLanguageCode'],
             },
@@ -113,7 +134,47 @@ Instructions:
     const outputText = response.text?.trim() || '{}';
     const parsedData = JSON.parse(outputText);
 
-    return res.status(200).json(parsedData);
+    // Sanitize romanization: ensure "null", "undefined", "none", "n/a", or empty string is never returned as a string
+    let cleanRomanization: string | null = null;
+    const rawRoman = parsedData.romanization ?? parsedData.transliteration;
+    if (typeof rawRoman === 'string') {
+      const trimmed = rawRoman.trim();
+      const lower = trimmed.toLowerCase();
+      if (
+        lower !== 'null' &&
+        lower !== 'undefined' &&
+        lower !== 'none' &&
+        lower !== 'n/a' &&
+        lower !== ''
+      ) {
+        cleanRomanization = trimmed;
+      }
+    }
+
+    let cleanNotes: string | null = null;
+    if (typeof parsedData.linguisticNotes === 'string') {
+      const trimmed = parsedData.linguisticNotes.trim();
+      const lower = trimmed.toLowerCase();
+      if (
+        lower !== 'null' &&
+        lower !== 'undefined' &&
+        lower !== 'none' &&
+        lower !== 'n/a' &&
+        lower !== ''
+      ) {
+        cleanNotes = trimmed;
+      }
+    }
+
+    return res.status(200).json({
+      translatedText: parsedData.translatedText,
+      detectedLanguage: parsedData.detectedLanguage,
+      detectedLanguageCode: parsedData.detectedLanguageCode,
+      confidence: typeof parsedData.confidence === 'number' ? parsedData.confidence : 95,
+      romanization: cleanRomanization,
+      transliteration: cleanRomanization, // keep for backward compatibility
+      linguisticNotes: cleanNotes,
+    });
   } catch (error: any) {
     console.error('Translation error in Vercel function:', error);
     return res.status(500).json({

@@ -1,6 +1,6 @@
 import express from 'express';
 import type { Request, Response } from 'express';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -60,20 +60,44 @@ Your mission is to translate text faithfully, idiomatically, and accurately whil
 
 Guidelines:
 1. Preserve all whitespace, line breaks, markdown symbols, numbers, and proper nouns.
-2. If source language is 'Auto-detect', detect the source language and its ISO code.
+2. If source language is 'Auto-detect', detect the source language name and its ISO 639-1 code.
 3. Tone requirement: ${tone} (e.g., natural conversational, formal business, casual friendly, academic, or creative).
-4. Provide a phonetic transliteration / romanization (e.g. Romaji for Japanese, Pinyin for Chinese, Roman script for Hindi/Marathi/Arabic/Russian/Greek/Korean) if the target or source language is written in a non-Latin script. Otherwise, omit or set to null.
-5. Provide a brief 1-sentence linguistic nuance note if any cultural idiom, honorific, or grammar subtlety was adapted. Otherwise set to null.
+4. Always provide a \`romanization\` field containing the Latin-script phonetic pronunciation of the translated text for any language that does not natively use Latin script (e.g., Hindi, Marathi, Chinese, Japanese, Arabic, Russian, Greek, Korean, etc. - e.g. for "नमस्ते" provide "Namaste"). If the target language already uses Latin script (e.g., French, Spanish, German, Italian, English, Portuguese), set romanization to null. Never output the literal string "null".
+5. Provide a brief 1-sentence linguistic nuance note if any cultural idiom, honorific, or grammar subtlety was adapted. Otherwise set to null.`;
 
-You MUST respond strictly with valid JSON with this exact structure:
-{
-  "translatedText": "the translation",
-  "detectedLanguage": "English/Hindi/French/etc.",
-  "detectedLanguageCode": "en/hi/fr/etc.",
-  "confidence": 98,
-  "transliteration": "optional phonetic text or null",
-  "linguisticNotes": "optional note or null"
-}`;
+      const responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+          translatedText: {
+            type: Type.STRING,
+            description: 'The translated text in the target language.',
+          },
+          romanization: {
+            type: Type.STRING,
+            nullable: true,
+            description:
+              'Latin-script phonetic pronunciation of the translated text for non-Latin scripts (e.g., "Namaste" for "नमस्ते"). Return null if target language already uses Latin script.',
+          },
+          detectedLanguage: {
+            type: Type.STRING,
+            description: 'Detected language name.',
+          },
+          detectedLanguageCode: {
+            type: Type.STRING,
+            description: 'Detected language code.',
+          },
+          confidence: {
+            type: Type.INTEGER,
+            description: 'Confidence score from 0 to 100.',
+          },
+          linguisticNotes: {
+            type: Type.STRING,
+            nullable: true,
+            description: 'Brief cultural note or null.',
+          },
+        },
+        required: ['translatedText', 'detectedLanguage', 'detectedLanguageCode'],
+      };
 
       const generateWithFallback = async (contents: string, config: any) => {
         const models = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
@@ -97,6 +121,7 @@ You MUST respond strictly with valid JSON with this exact structure:
       const response = await generateWithFallback(prompt, {
         systemInstruction,
         responseMimeType: 'application/json',
+        responseSchema,
         temperature: 0.3,
       });
 
@@ -122,13 +147,46 @@ You MUST respond strictly with valid JSON with this exact structure:
         }
       }
 
+      // Sanitize romanization: ensure "null", "undefined", "none", "n/a", or empty string is never returned as a string
+      let cleanRomanization: string | null = null;
+      const rawRoman = parsed.romanization ?? parsed.transliteration;
+      if (typeof rawRoman === 'string') {
+        const trimmed = rawRoman.trim();
+        const lower = trimmed.toLowerCase();
+        if (
+          lower !== 'null' &&
+          lower !== 'undefined' &&
+          lower !== 'none' &&
+          lower !== 'n/a' &&
+          lower !== ''
+        ) {
+          cleanRomanization = trimmed;
+        }
+      }
+
+      let cleanNotes: string | null = null;
+      if (typeof parsed.linguisticNotes === 'string') {
+        const trimmed = parsed.linguisticNotes.trim();
+        const lower = trimmed.toLowerCase();
+        if (
+          lower !== 'null' &&
+          lower !== 'undefined' &&
+          lower !== 'none' &&
+          lower !== 'n/a' &&
+          lower !== ''
+        ) {
+          cleanNotes = trimmed;
+        }
+      }
+
       res.json({
         translatedText: parsed.translatedText || responseText.trim(),
         detectedLanguage: parsed.detectedLanguage,
         detectedLanguageCode: parsed.detectedLanguageCode,
         confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 95,
-        transliteration: parsed.transliteration || null,
-        linguisticNotes: parsed.linguisticNotes || null,
+        romanization: cleanRomanization,
+        transliteration: cleanRomanization, // keep for backward compatibility
+        linguisticNotes: cleanNotes,
       });
     } catch (error: any) {
       console.error('Translation error:', error);
