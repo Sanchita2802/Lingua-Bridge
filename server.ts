@@ -1,4 +1,5 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
+import type { Request, Response } from 'express';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -11,14 +12,8 @@ const isProd = process.env.NODE_ENV === 'production';
 const port = process.env.PORT || 3000;
 
 // Initialize Google GenAI client according to official guidelines
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    },
-  },
-});
+const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+const ai = new GoogleGenAI(apiKey ? { apiKey } : {});
 
 async function startServer() {
   const app = express();
@@ -200,6 +195,11 @@ Respond with JSON only:
       console.error('Language detection error:', error);
       res.status(500).json({ error: 'Language detection failed.' });
     }
+  });
+
+  // Ensure unhandled API routes return JSON, not HTML SPA fallback
+  app.all('/api/*', (_req: Request, res: Response) => {
+    res.status(404).json({ error: 'API route not found' });
   });
 
   // Setup Vite middlewares in development or serve static files in production

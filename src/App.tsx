@@ -202,11 +202,39 @@ export default function App() {
           }),
         });
 
-        const data = await response.json();
+        const contentType = response.headers.get('content-type') || '';
 
+        // Safe check 1: First check response.ok HTTP status before attempting JSON parse
         if (!response.ok) {
-          throw new Error(data.error || 'Failed to translate. Please try again.');
+          let errorMessage = `API request failed (${response.status})`;
+          if (contentType.includes('application/json')) {
+            try {
+              const errData = await response.json();
+              errorMessage = errData.error || errorMessage;
+            } catch {
+              // fallback to text if JSON parsing fails
+            }
+          } else {
+            const rawText = await response.text();
+            const cleanText = rawText.replace(/<[^>]*>?/gm, '').trim();
+            errorMessage = cleanText
+              ? `Server returned (${response.status}): ${cleanText.slice(0, 160)}`
+              : `API request failed (${response.status})`;
+          }
+          throw new Error(errorMessage);
         }
+
+        // Safe check 2: Verify content-type includes application/json before parsing
+        if (!contentType.includes('application/json')) {
+          const rawText = await response.text();
+          const cleanText = rawText.replace(/<[^>]*>?/gm, '').trim();
+          throw new Error(
+            `Expected JSON response but received: ${cleanText.slice(0, 150)}`
+          );
+        }
+
+        // Safe step 3: Parse confirmed valid JSON response
+        const data: TranslationResponse = await response.json();
 
         setTranslation(data);
 
